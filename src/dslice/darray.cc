@@ -1,75 +1,86 @@
-#include <fstream>
-#include <sstream>
 #include "../../include/dslice/darray.h"
 
 namespace dslice {
 
-bool operator==(const IntDarray& lhs, const IntDarray& rhs) {
-	if (lhs.Nrow() != rhs.Nrow() || lhs.Ncol() != rhs.Ncol()) {
-		return false;
-	}
-	ds_uint nrow = lhs.Nrow();
-	ds_uint ncol = lhs.Ncol();
+const Darray<ds_int> StringDarray::ToInt() {
+	Darray<ds_int> int_darray;
+	ds_uint nrow = Nrow();
+	ds_uint ncol = Ncol();
+	int_darray.Resize(nrow, ncol);
+	std::string buffer;
 	for (int i = 0; i != nrow; ++i) {
 		for (int j = 0; j != ncol; ++j) {
-			if (lhs[i][j] != rhs[i][j]) {
-				return false;
+			buffer = darray_[i][j];
+			if (buffer.empty()) {
+				int_darray.SetValue(i, j, 0);
+			} else {
+				int_darray.SetValue(i, j, stoi(buffer));
 			}
 		}
 	}
-	return true;
-}
-
-bool operator!=(const IntDarray& lhs, const IntDarray& rhs) {
-	return !(lhs == rhs);
-}
-
-const IntDarray operator+(const IntDarray& lhs, const IntDarray& rhs) {
-	IntDarray int_darray;
-	if (lhs.Nrow() != rhs.Nrow() || lhs.Ncol() != rhs.Ncol()) {
-		return int_darray;
+	if (row_name_.size() != nrow) {
+		row_name_.resize(nrow);
 	}
-	int_darray = lhs;
-	int_darray += rhs;
+	int_darray.SetDimName(row_name_, 1);
+	if (col_name_.size() != ncol) {
+		col_name_.resize(ncol);
+	}
+	int_darray.SetDimName(col_name_, 2);
 	return int_darray;
 }
 
-const IntDarray operator-(const IntDarray& lhs, const IntDarray& rhs) {
-	IntDarray int_darray;
-	if (lhs.Nrow() != rhs.Nrow() || lhs.Ncol() != rhs.Ncol()) {
-		return int_darray;
+const Darray<ds_uint> StringDarray::ToUInt() {
+	Darray<ds_uint> int_darray;
+	ds_uint nrow = Nrow();
+	ds_uint ncol = Ncol();
+	int_darray.Resize(nrow, ncol);
+	std::string buffer;
+	for (int i = 0; i != nrow; ++i) {
+		for (int j = 0; j != ncol; ++j) {
+			buffer = darray_[i][j];
+			if (buffer.empty()) {
+				int_darray.SetValue(i, j, 0);
+			} else {
+				int_darray.SetValue(i, j, stoul(buffer));
+			}
+		}
 	}
-	int_darray = lhs;
-	int_darray -= rhs;
+	if (row_name_.size() != nrow) {
+		row_name_.resize(nrow);
+	}
+	int_darray.SetDimName(row_name_, 1);
+	if (col_name_.size() != ncol) {
+		col_name_.resize(ncol);
+	}
+	int_darray.SetDimName(col_name_, 2);
 	return int_darray;
 }
 
-const IntDarray& IntDarray::operator+=(const IntDarray& int_darray) {
-	if (Nrow() != int_darray.Nrow() || Ncol() != int_darray.Ncol()) {
-		return *this;
-	}
+const Darray<ds_double> StringDarray::ToDouble() {
+	Darray<ds_double> double_darray;
 	ds_uint nrow = Nrow();
 	ds_uint ncol = Ncol();
+	double_darray.Resize(nrow, ncol);
+	std::string buffer;
 	for (int i = 0; i != nrow; ++i) {
 		for (int j = 0; j != ncol; ++j) {
-			darray_[i][j] += int_darray[i][j];
+			buffer = darray_[i][j];
+			if (buffer.empty()) {
+				double_darray.SetValue(i, j, 0);
+			} else {
+				double_darray.SetValue(i, j, stod(buffer));
+			}
 		}
 	}
-	return *this;
-}
-
-const IntDarray& IntDarray::operator-=(const IntDarray& int_darray) {
-	if (Nrow() != int_darray.Nrow() || Ncol() != int_darray.Ncol()) {
-		return *this;
+	if (row_name_.size() != nrow) {
+		row_name_.resize(nrow);
 	}
-	ds_uint nrow = Nrow();
-	ds_uint ncol = Ncol();
-	for (int i = 0; i != nrow; ++i) {
-		for (int j = 0; j != ncol; ++j) {
-			darray_[i][j] -= int_darray[i][j];
-		}
+	double_darray.SetDimName(row_name_, 1);
+	if (col_name_.size() != ncol) {
+		col_name_.resize(ncol);
 	}
-	return *this;
+	double_darray.SetDimName(col_name_, 2);
+	return double_darray;
 }
 
 char StringToChar(const std::string& in_str) {
@@ -77,36 +88,31 @@ char StringToChar(const std::string& in_str) {
 	return cstr[0];
 }
 
-int StringToInt(const std::string& in_str) {
-	int out_value = 0;
-	if (~in_str.empty()) {
-		std::stringstream converter(in_str);
-		converter >> out_value;
-	}
-	return out_value;
+StringDarray ReadDarray(std::string file, std::string delim, bool header, bool with_row_name) {
+	const char* in_file = file.c_str();
+	char sep = StringToChar(delim);
+	dslice::StringDarray darray = ReadDarray(in_file, sep, header, with_row_name);
+	return darray;
 }
 
-const IntDarray ReadDarray(std::string file, std::string delim, bool header, bool with_row_name) {
-	std::ifstream file_in(file.c_str());
-	IntDarray int_darray;
+StringDarray ReadDarray(const char* file, char delim, bool header, bool with_row_name) {
+	StringDarray str_darray;
+	std::ifstream file_in(file);
 	if (!file_in) {
 		std::cerr << "Error: fail to open file " << file << std::endl;
-		return int_darray;
+		return str_darray;
 	}
-	char sep = StringToChar(delim);
-	int_darray = ReadDarray(file_in, sep, header, with_row_name);
+	str_darray = ReadDarray(file_in, delim, header, with_row_name);
 	file_in.close();
-	return int_darray;
+	return str_darray;
 }
 
-const IntDarray ReadDarray(std::istream& in_stream, char delim, bool header, bool with_row_name) {
-	IntDarray int_darray;
+StringDarray ReadDarray(std::istream& in_stream, char delim, bool header, bool with_row_name) {
+	StringDarray str_darray;
 	std::string buffer, str;
-	int value;
-	std::vector<int> new_row;
+	std::vector<std::string> new_row;
 	std::vector<std::string> col_names;
 	std::vector<std::string> row_names;
-
 	if (header) {
 		std::getline(in_stream, buffer);
 		std::istringstream istr_stream(buffer);
@@ -125,74 +131,62 @@ const IntDarray ReadDarray(std::istream& in_stream, char delim, bool header, boo
 			row_names.push_back(str);
 		}
 		while (std::getline(istr_stream, str, delim)) {
-			value = StringToInt(str);
-			new_row.push_back(value);
+			new_row.push_back(str);
 		}
 		if (new_row.size() == 0) {
 			continue;
 		}
-		if (!int_darray.PushBack(new_row)) {
-			int_darray.Resize(0, 0);
-			return int_darray;
+		if (!str_darray.PushBack(new_row)) {
+			str_darray.Resize(0, 0);
+			return str_darray;
 		}
 	}
 	if (header) {
-		int_darray.SetDimName(col_names, 2);
+		str_darray.SetDimName(col_names, 2);
 	}
 	if (with_row_name) {
-		int_darray.SetDimName(row_names, 1);
+		str_darray.SetDimName(row_names, 1);
 	}
-	return int_darray;
+	return str_darray;
 }
 
-void WriteDarray(const IntDarray& int_darray, std::string file, std::string delim, bool col_name, bool row_name) {
-	std::ofstream file_out(file.c_str());
-	if (!file_out) {
-		return;
-	}
-	WriteDarray(int_darray, file_out, delim, col_name, row_name);
-	file_out.close();
+Darray<ds_int> ReadIntDarray(std::string file, std::string delim, bool header, bool with_row_name) {
+	const char* in_file = file.c_str();
+	char sep = StringToChar(delim);
+	dslice::Darray<ds_int> darray = ReadIntDarray(in_file, sep, header, with_row_name);
+	return darray;
 }
 
-void WriteDarray(const IntDarray& int_darray, std::ostream& out_stream, std::string delim, bool col_name, bool row_name) {
-	if (int_darray.Empty()) {
-		return;
-	}
-	ds_uint nrow = int_darray.Nrow();
-	ds_uint ncol = int_darray.Ncol();
-	std::vector<std::string> rownames = int_darray.RowName();
-	std::vector<std::string> colnames = int_darray.ColName();
-	row_name = row_name && (!rownames.empty());
-	col_name = col_name && (!colnames.empty());
+Darray<ds_int> ReadIntDarray(const char* file, char delim, bool header, bool with_row_name) {
+	dslice::StringDarray buffer = ReadDarray(file, delim, header, with_row_name);
+	dslice::Darray<ds_int> darray = buffer.ToInt();
+	return darray;
+}
 
-	if (row_name && col_name) {
-		out_stream << "Darray" << delim;
-	}
-	if (col_name) {
-		out_stream << colnames[0];
-		for (ds_uint j = 1; j != ncol; ++j) {
-			out_stream << delim << colnames[j];
-		}
-		out_stream << std::endl;
-	}
-	if (row_name) {
-		for (ds_uint i = 0; i != nrow; ++i) {
-			out_stream << rownames[i];
-			for (ds_uint j = 0; j != ncol; ++j) {
-				out_stream << delim << int_darray(i, j);
-			}
-			out_stream << std::endl;
-		}
-	} else {
-		for (ds_uint i = 0; i != nrow; ++i) {
-			out_stream << int_darray(i, 0);
-			for (ds_uint j = 1; j != ncol; ++j) {
-				out_stream << delim << int_darray(i, j);
-			}
-			out_stream << std::endl;
-		}
-	}
+Darray<ds_uint> ReadUIntDarray(std::string file, std::string delim, bool header, bool with_row_name) {
+	const char* in_file = file.c_str();
+	char sep = StringToChar(delim);
+	dslice::Darray<ds_uint> darray = ReadUIntDarray(in_file, sep, header, with_row_name);
+	return darray;
+}
+
+Darray<ds_uint> ReadUIntDarray(const char* file, char delim, bool header, bool with_row_name) {
+	dslice::StringDarray buffer = ReadDarray(file, delim, header, with_row_name);
+	dslice::Darray<ds_uint> darray = buffer.ToUInt();
+	return darray;
+}
+
+Darray<ds_double> ReadDoubleDarray(std::string file, std::string delim, bool header, bool with_row_name) {
+	const char* in_file = file.c_str();
+	char sep = StringToChar(delim);
+	dslice::Darray<ds_double> darray = ReadDoubleDarray(in_file, sep, header, with_row_name);
+	return darray;
+}
+
+Darray<ds_double> ReadDoubleDarray(const char* file, char delim, bool header, bool with_row_name) {
+	dslice::StringDarray buffer = ReadDarray(file, delim, header, with_row_name);
+	dslice::Darray<ds_double> darray = buffer.ToDouble();
+	return darray;
 }
 
 } // namespace
-
